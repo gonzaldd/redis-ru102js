@@ -66,7 +66,6 @@ const insert = async (site) => {
   const client = redis.getClient();
 
   const siteHashKey = keyGenerator.getSiteHashKey(site.id);
-
   await client.hmsetAsync(siteHashKey, flatten(site));
   await client.saddAsync(keyGenerator.getSiteIDsKey(), siteHashKey);
 
@@ -95,8 +94,25 @@ const findById = async (id) => {
  * @returns {Promise} - a Promise, resolving to an array of site objects.
  */
 const findAll = async () => {
-  // START CHALLENGE #1
-  return [];
+  const client = redis.getClient();
+
+  const siteIds = await client.smembersAsync(keyGenerator.getSiteIDsKey());
+  const sites = [];
+
+   for (const siteId of siteIds) {
+    /* eslint-disable no-await-in-loop */
+    const siteHash = await client.hgetallAsync(siteId);
+    /* eslint-enable */
+   
+    if (siteHash) {
+      // Call remap to remap the flat key/value representation
+      // from the Redis hash into the site domain object format.
+      sites.push(remap(siteHash));
+    }
+   }
+
+  return sites;
+  
   // END CHALLENGE #1
 };
 /* eslint-enable */
