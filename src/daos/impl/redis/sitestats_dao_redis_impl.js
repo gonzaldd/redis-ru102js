@@ -59,6 +59,32 @@ const updateOptimized = async (meterReading) => {
   await compareAndUpdateScript.load();
 
   // START Challenge #3
+  const transaction = client.multi();
+
+  transaction.hset(
+    key,
+    'lastReportingTime',
+    timeUtils.getCurrentTimestamp(),
+  );
+  transaction.hincrby(key, 'meterReadingCount', 1);
+  transaction.expire(key, weekSeconds);
+
+  await client.evalshaAsync(
+    compareAndUpdateScript.updateIfGreater(key, 'maxWhGenerated', meterReading.whGenerated),
+  );
+
+  await client.evalshaAsync(
+    compareAndUpdateScript.updateIfLess(key, 'minWhGenerated', meterReading.whGenerated),
+  );
+
+  const readingCapacity = meterReading.whGenerated - meterReading.whUsed;
+  await client.evalshaAsync(
+    compareAndUpdateScript.updateIfGreater(key, 'maxCapacity', readingCapacity),
+  );
+
+  await transaction.execAsync();
+
+
   // END Challenge #3
 };
 /* eslint-enable */
@@ -106,5 +132,5 @@ const updateBasic = async (meterReading) => {
 
 module.exports = {
   findById,
-  update: updateBasic, // updateOptimized
+  update: updateOptimized
 };
